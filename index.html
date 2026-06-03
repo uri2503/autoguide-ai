@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>AutoGuide AI</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0d0d14;color:#e0e0e0;font-family:system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+:root{--r:#c0392b;--g:#27ae60;--bd:rgba(255,255,255,.08)}
+button{font-family:inherit;cursor:pointer;border-radius:8px;font-weight:600;border:none;transition:background .15s}
+input,textarea,select{font-family:inherit;font-size:14px;color:#e0e0e0;background:rgba(255,255,255,.06);border:1px solid var(--bd);border-radius:9px;padding:11px 13px;outline:none;width:100%;box-sizing:border-box}
+select{background:rgba(20,20,35,.95);cursor:pointer}
+select option{background:#1a1a2e}
+textarea{resize:none}
+.rb{background:var(--r);color:#fff;padding:10px 18px;font-size:13px}
+.rb:active{background:#e74c3c}
+.rb:disabled{opacity:.4;cursor:not-allowed}
+.gb{background:rgba(39,174,96,.13);border:1px solid var(--g) !important;color:#2ecc71;padding:8px 12px;font-size:12px}
+.yb{background:rgba(255,200,0,.12);border:1px solid rgba(255,200,0,.4) !important;color:#f0c040;padding:8px 12px;font-size:12px}
+.xb{background:rgba(255,255,255,.07);border:1px solid var(--bd) !important;color:#888;padding:8px 12px;font-size:12px}
+.sb{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.15) !important;color:#888;padding:6px 13px;border-radius:16px;font-size:12px}
+.sb:active{background:rgba(192,57,43,.2);color:#fff}
+.card{background:rgba(255,255,255,.03);border:1px solid var(--bd);border-radius:13px;overflow:hidden}
+.lbl{color:#555;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:9px}
+#hdr{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bd);background:rgba(255,255,255,.02)}
+#tabs{display:flex;border-bottom:1px solid var(--bd)}
+.tab{flex:1;padding:12px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#555;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s}
+.tab.on{border-bottom-color:var(--r);color:#e0e0e0}
+#main{flex:1;max-width:900px;width:100%;margin:0 auto;padding:16px 14px;display:flex;flex-direction:column;gap:13px}
+.step-h{font-size:14px;font-weight:700;color:#e8e8e8;margin:14px 0 5px;padding-left:10px;border-left:3px solid var(--r)}
+.step-n{display:flex;gap:10px;margin:4px 0;font-size:13px;color:#ccc;line-height:1.5}
+.step-n b{color:var(--r);font-weight:700;min-width:20px;flex-shrink:0}
+.step-d{display:flex;gap:9px;margin:3px 0;font-size:13px;color:#ccc}
+.step-d b{color:var(--r);flex-shrink:0}
+.step-t{font-size:12px;color:#888;margin:2px 0}
+.vtag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px}
+.vcat{background:rgba(192,57,43,.2);color:#e74c3c}
+.vfree{background:rgba(255,255,255,.06);color:#888}
+.overlay{position:fixed;inset:0;background:#fff;z-index:9999;display:none;flex-direction:column}
+.overlay.on{display:flex}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fu .28s ease}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div style="background:linear-gradient(135deg,#c0392b,#8e1a0e);border-radius:9px;padding:7px 9px;color:#fff;flex-shrink:0">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M5 17H3a2 2 0 0 1-2-2v-4l2.5-6h13l2.5 6V15a2 2 0 0 1-2 2h-2"/>
+      <circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/>
+      <path d="M5 9h14"/>
+    </svg>
+  </div>
+  <div style="flex:1">
+    <div style="font-size:17px;font-weight:800;color:#fff">AutoGuide <span style="color:var(--r)">AI</span></div>
+    <div style="color:#444;font-size:9px">KFZ REPARATURASSISTENT</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="xb" onclick="exportData()">&#128190; Sichern</button>
+    <button class="xb" onclick="document.getElementById('imp').click()">&#128228; Laden</button>
+    <input type="file" id="imp" accept=".json" style="display:none" onchange="importData(this)"/>
+    <div style="display:flex;align-items:center;gap:5px">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g)"></div>
+      <span style="color:#444;font-size:10px">Offline</span>
+    </div>
+  </div>
+</div>
+
+<div id="tabs">
+  <button class="tab on" id="t-anleitungen" onclick="showTab('anleitungen')">Anleitungen</button>
+  <button class="tab" id="t-videos" onclick="showTab('videos')">Videos</button>
+  <button class="tab" id="t-gespeichert" onclick="showTab('gespeichert')">Gespeichert</button>
+</div>
+
+<div id="main">
+
+  <!-- ANLEITUNGEN -->
+  <div id="p-anleitungen">
+    <div class="card" style="padding:16px;margin-bottom:13px">
+      <div class="lbl">Reparaturanfrage</div>
+      <textarea id="qi" rows="2" placeholder="z.B. Kupplungswechsel Mercedes W107 300 SL..." style="margin-bottom:10px" onkeydown="if(event.key==='Enter'){event.preventDefault();doSearch()}"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#333;font-size:11px">Enter oder Button</span>
+        <button class="rb" onclick="doSearch()">Anleitung suchen</button>
+      </div>
+    </div>
+    <div id="suggs">
+      <div class="lbl">Verfügbare Themen</div>
+      <div id="sugglist" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+    </div>
+    <div id="nf" style="display:none;background:rgba(240,165,0,.1);border:1px solid rgba(240,165,0,.3);border-radius:10px;padding:13px 16px;color:#f0a500">
+      <div style="font-weight:700;margin-bottom:4px">Keine Anleitung gefunden</div>
+      <div style="font-size:12px">Themen: Kupplung, Zahnriemen, Bremsen, Öl, Stoßdämpfer, Beleuchtung, Batterie, Luftfilter, Zündkerzen</div>
+    </div>
+    <div id="rb" style="display:none" class="card fu">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 5px var(--g);flex-shrink:0"></div>
+          <span id="rtitle" style="color:#ccc;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="gb" onclick="doPrint()">PDF</button>
+          <button class="yb" onclick="doSave()">Speichern</button>
+          <button class="xb" onclick="clearR()">&#10005;</button>
+        </div>
+      </div>
+      <div id="rbody" style="padding:16px 18px;max-height:440px;overflow-y:auto;line-height:1.7"></div>
+      <div style="padding:9px 14px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+        <span id="smsg" style="font-size:12px;color:#444"></span>
+        <button class="rb" style="padding:7px 13px;font-size:12px" onclick="clearR()">+ Neue Anfrage</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIDEOS -->
+  <div id="p-videos" style="display:none">
+    <div class="card" style="padding:16px;margin-bottom:13px">
+      <div class="lbl" id="vflbl">Video hinzufügen</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <input id="vurl" placeholder="Video-URL: YouTube, Instagram, Facebook, TikTok..."/>
+        <input id="vtitle" placeholder="Titel / Beschreibung *"/>
+        <div style="display:flex;gap:8px">
+          <select id="vcat" style="flex:1"></select>
+          <input id="vtags" placeholder="Tags: MIG, Anfänger, WIG..." style="flex:2"/>
+        </div>
+        <textarea id="vnotes" rows="2" placeholder="Notizen (z.B. ab Minute 4:30 interessant...)"></textarea>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="rb" style="flex:1" id="vsavebtn" onclick="saveVideo()">+ Video speichern</button>
+          <button class="xb" id="vcancelbtn" style="display:none" onclick="cancelEdit()">Abbrechen</button>
+          <span id="vmsg" style="font-size:12px;font-weight:600"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px;margin-bottom:13px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div class="lbl" style="margin:0">Eigene Kategorien</div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <input id="newcat" placeholder="Neue Kategorie..." style="width:150px;padding:7px 11px;font-size:12px" onkeydown="if(event.key==='Enter'){addCat(this.value);this.value=''}"/>
+          <button class="rb" style="padding:7px 13px;font-size:12px" onclick="addCat(document.getElementById('newcat').value);document.getElementById('newcat').value=''">+ Hinzufügen</button>
+        </div>
+      </div>
+      <div id="catlist"></div>
+    </div>
+
+    <div id="vsearchrow" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:13px">
+      <input id="vsearch" placeholder="Videos durchsuchen..." style="flex:2;min-width:140px" oninput="renderVids()"/>
+      <select id="vcatf" style="flex:1;min-width:120px" onchange="renderVids()">
+        <option value="Alle">Alle Kategorien</option>
+      </select>
+    </div>
+    <div id="vempty" style="text-align:center;padding:36px 16px;color:#444">
+      <div style="font-size:38px;margin-bottom:9px">&#128249;</div>
+      <div style="font-weight:600;color:#666;margin-bottom:4px">Noch keine Videos gespeichert</div>
+      <div style="font-size:12px">Video-URL oben einfügen und speichern</div>
+    </div>
+    <div id="vlist" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+
+  <!-- GESPEICHERT -->
+  <div id="p-gespeichert" style="display:none">
+    <div class="card">
+      <div style="padding:11px 15px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#ccc;font-weight:700;font-size:14px">Gespeicherte Anleitungen</span>
+        <span id="scnt" style="color:#666;font-size:11px">0 Einträge</span>
+      </div>
+      <div id="slist"></div>
+    </div>
+  </div>
+
+</div>
+
+<div style="padding:7px;text-align:center;color:#1a1a1a;font-size:10px">
+  AutoGuide AI · 9 Anleitungen · Video-Bibliothek · PDF · Offline
+</div>
+
+<div id="printoverlay" class="overlay">
+  <div style="background:#1a1a2e;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <span style="color:#fff;font-weight:700;font-size:14px">Druckvorschau</span>
+    <div style="display:flex;gap:8px">
+      <button class="rb" onclick="window.print()">&#128424; Drucken / PDF</button>
+      <button class="xb" onclick="document.getElementById('printoverlay').classList.remove('on')">&#10005; Schließen</button>
+    </div>
+  </div>
+  <iframe id="pframe" style="flex:1;border:none;width:100%;background:#fff"></iframe>
+</div>
+
+<script>
+var DB = {
+  kupplung:{tags:["kupplung","clutch","kupplungsscheibe","ausrucklager"],models:["mercedes","w107","bmw","vw","golf","audi","ford","opel","porsche"],title:"Kupplungswechsel",steps:["## Benötigte Teile und Werkzeuge","- Kupplungssatz komplett (Druckplatte, Scheibe, Ausrücklager)","- Zentrierdorn, Getriebeständer, Drehmomentschlüssel","","## Sicherheitshinweis","Fahrzeug sicher aufbocken! Nie unter nur durch Wagenheber gesichertem Fahrzeug arbeiten.","","## Schritt 1 - Vorbereitung","1. Fahrzeug aufbocken, Auspuff demontieren","2. Kardanwelle vorne und hinten abschrauben","","## Schritt 2 - Getriebe ausbauen","1. Stecker und Leitungen abziehen","2. Schaltstange trennen, Kupplungszug abklemmen","3. Getriebe mit Heber stützen, Schrauben lösen","4. Getriebe vorsichtig nach hinten herausziehen","","## Schritt 3 - Kupplung ausbauen","1. Druckplatte markieren, über Kreuz lösen (Federspannung!)","2. Druckplatte und Scheibe entnehmen, Ausrücklager abziehen","","## Schritt 4 - Neue Kupplung einbauen","1. Neues Ausrücklager aufsetzen","2. Kupplungsscheibe mit Zentrierdorn ausrichten","3. Druckplatte über Kreuz anziehen: 20-25 Nm","","## Schritt 5 - Montage","1. Getriebe einführen (Eingangswelle zentrisch!)","2. Schrauben: 70-80 Nm, Kardanwelle: 22 Nm","3. Kupplungsspiel einstellen: 20-25 mm Freiweg","","## Tipps","- Immer kompletten Kupplungssatz tauschen","- Schwungrad bei hoher Laufleistung schleifen lassen"]},
+  zahnriemen:{tags:["zahnriemen","timing","nockenwelle","wasserpumpe","spannrolle"],models:["vw","golf","audi","seat","skoda","ford","opel","fiat","renault"],title:"Zahnriemenwechsel",steps:["## Benötigte Teile und Werkzeuge","- Zahnriemensatz (Riemen, Spannrolle, Umlenkrolle)","- Motoreinstell-Werkzeug (Nockenwellen-Arretierung)","","## Sicherheitshinweis","Motor muss abgekühlt sein! Falsche Steuerzeiten führen zu Motorschaden.","","## Schritt 1 - OT einstellen","1. Motor auf OT drehen, Nockenwelle arretieren","2. Kurbelwelle arretieren","","## Schritt 2 - Zerlegung","1. Keilriemen entfernen, Riemenscheibe abbauen (150-200 Nm)","2. Zahnriemendeckel abnehmen","","## Schritt 3 - Riemen tauschen","1. Spannrolle lösen, Riemen abnehmen","2. Wasserpumpe gleichzeitig tauschen (empfohlen!)","3. Neuen Riemen auflegen - Laufrichtungspfeil beachten!","4. Spannrolle: 20-25 Nm","","## Schritt 4 - Steuerzeiten prüfen","1. Motor 2x per Hand durchdrehen","2. Alle Markierungen müssen exakt übereinstimmen","","## Tipps","- Zahnriemen alle 60.000-120.000 km tauschen","- Dehnschrauben immer erneuern!"]},
+  bremsen:{tags:["bremse","bremsbelag","bremsscheibe","bremssattel","brake"],models:["bmw","mercedes","audi","vw","opel","ford","toyota","honda"],title:"Bremsbeläge wechseln",steps:["## Benötigte Teile und Werkzeuge","- Bremsbeläge (achsweise tauschen!)","- Bremsscheiben bei Rillen oder über 80.000 km","- Kolbenrückdrückwerkzeug, Bremsenreiniger","","## Sicherheitshinweis","Nach Einbau Bremspedal mehrfach pumpen bevor Fahrzeug bewegt wird!","","## Schritt 1 - Rad abbauen","1. Fahrzeug aufbocken, Rad abnehmen","","## Schritt 2 - Bremssattel","1. Führungsbolzen lösen (7-9 Nm)","2. Sattel abheben, aufhängen - nicht am Bremsschlauch!","3. Alte Beläge entnehmen, Kolben zurückdrücken","","## Schritt 3 - Bremsscheibe","1. Führungsschraube lösen, Scheibe abziehen","2. Neue Scheibe: 8-10 Nm","","## Schritt 4 - Neue Beläge","1. Führungsbleche reinigen, Kupferpaste auf Metall","2. Beläge einlegen, Sattel: 25-35 Nm, Rad: 110-130 Nm","","## Tipps","- Beläge immer achsweise tauschen","- Bremsflüssigkeit alle 2 Jahre wechseln"]},
+  oel:{tags:["ol","oel","oil","olwechsel","motorol"],models:["alle","porsche","bmw","mercedes","vw","audi","toyota"],title:"Ölwechsel",steps:["## Benötigte Teile und Werkzeuge","- Motoröl (Spezifikation laut Handbuch, z.B. 5W-40)","- Ölfilter, neuer Dichtring für Ablassschraube","","## Sicherheitshinweis","Heißes Öl verbrennt! Öl fachgerecht entsorgen.","","## Schritt 1","1. Motor 5 Min. warmlaufen lassen, abstellen","","## Schritt 2 - Öl ablassen","1. Auffangwanne positionieren","2. Ablassschraube lösen (17 oder 19 mm)","3. Öl 5-10 Min. ablaufen lassen","4. Neuen Dichtring: 25-30 Nm","","## Schritt 3 - Ölfilter","1. Filter abschrauben, Dichtfläche reinigen","2. Neuen Filter: O-Ring mit Öl benetzen, handfest + 3/4 Umdrehung","","## Schritt 4 - Einfüllen","1. Frisches Öl einfüllen (Menge laut Handbuch)","2. Motor starten, Öldruckleuchte muss erlöschen","3. 5 Min. warten, Ölstand prüfen","","## Tipps","- Ölwechsel alle 10.000-15.000 km oder jährlich","- Immer Original-Ölspezifikation verwenden"]},
+  stossdaempfer:{tags:["stossdampfer","federbein","feder","fahrwerk","shock"],models:["audi","a4","bmw","mercedes","vw","opel","ford"],title:"Stoßdämpfer wechseln",steps:["## Benötigte Teile und Werkzeuge","- Stoßdämpfer paarweise (links + rechts!)","- Federspanner - Lebensgefahr ohne!","- Drehmomentschlüssel, Gelenkkopf-Abzieher","","## Sicherheitshinweis","Federn stehen unter extremer Spannung! Nur zugelassene Federspanner!","","## Schritt 1","1. Fahrzeug aufbocken, Rad abnehmen","2. Bremssattel abbauen, ABS-Sensor abziehen","","## Schritt 2 - Ausbauen","1. Spurstangenkopf lösen (Abzieher!)","2. Stabilisatorkoppelstange abschrauben","3. Federbein herausnehmen","","## Schritt 3 - Feder spannen","1. Federspanner gleichmäßig einsetzen","2. Domlager prüfen (Knistern = defekt)","3. Kolbenstangenmutter lösen","","## Schritt 4 - Einbauen","1. Feder korrekt einlegen, Kolbenstangenmutter: 60-80 Nm","2. Spurstangenkopf: 40-50 Nm, Federbeinschraube: 100-120 Nm","3. Rad: 110-130 Nm","","## Tipps","- Immer achsweise tauschen","- Fahrwerksvermessung danach unbedingt!"]},
+  beleuchtung:{tags:["lampe","licht","birne","scheinwerfer","blinker","rucklicht","led","h7","h4","gluhlampe","leuchtmittel"],models:["smart","451","mercedes","bmw","vw","golf","audi","ford","opel","alle"],title:"Leuchtmittel wechseln",steps:["## Benötigte Teile und Werkzeuge","- Passendes Leuchtmittel (H4, H7, W5W, P21W - laut Handbuch)","- Einweghandschuhe (Halogen nie mit bloßen Händen!)","","## Sicherheitshinweis","Halogen nie mit bloßen Händen anfassen - Fett zerstört das Glas! Zündung aus.","","## Schritt 1 - Scheinwerfer vorne","1. Motorhaube öffnen, Kabelstecker abziehen","2. Gummischutzkappe abdrehen (gegen Uhrzeigersinn)","3. Haltebügel lösen, alte Lampe herausziehen","4. Neue Lampe mit Handschuh einsetzen, einrasten","5. Kappe aufsetzen (Pfeil nach oben!)","","## Schritt 2 - Sonderfall Smart 451","1. Kein Zugang von hinten - Scheinwerfer ausbauen","2. 2 Schrauben oben, 1 unten lösen","3. Einheit nach vorne ziehen, Lampe tauschen","","## Schritt 3 - Blinker oder Rücklicht","1. Blinker vorne: durch Radkasten zugänglich","2. Rücklicht: Kofferraum öffnen, Verkleidung abziehen","3. Fassung 90 Grad drehen, herausziehen, Birne wechseln","","## Tipps","- Immer paarweise tauschen (links + rechts)","- LED-Nachrüstung: auf Zulassung E1/E4 achten"]},
+  batterie:{tags:["batterie","akku","battery","starthilfe","startproblem","springt nicht an"],models:["alle","smart","451","mercedes","bmw","vw","golf","audi","ford","opel"],title:"Batterie wechseln",steps:["## Benötigte Teile und Werkzeuge","- Neue Starterbatterie (passende Ah-Zahl und Polposition!)","- Schraubenschlüssel 10 mm und 10-13 mm","- Radio-Code bereithalten","","## Sicherheitshinweis","Zündung aus! Zuerst Minuspol (-) abklemmen, zuletzt anklemmen!","","## Schritt 1 - Alte Batterie","1. Minuspol (-, schwarz) ZUERST abklemmen","2. Pluspol (+, rot) abklemmen","3. Halteklammer lösen, Batterie herausheben (15-20 kg!)","","## Schritt 2 - Neue Batterie","1. Batteriefach reinigen, Polposition prüfen!","2. Batterie einsetzen, Halteklammer befestigen","3. Pluspol (+) ZUERST anklemmen","4. Minuspol (-) ZULETZT anklemmen","","## Nach dem Einbau","1. Radio-Code eingeben","2. Fensterheber einlernen (Taste halten bis Anschlag)","3. Ab 2010: Batterie im Steuergerät anmelden!","","## Tipps","- Batterie alle 4-5 Jahre tauschen","- Im Winter häufiger prüfen"]},
+  luftfilter:{tags:["luftfilter","filter","innenraumfilter","pollenfilter","air filter"],models:["alle","smart","451","mercedes","bmw","vw","golf","audi","ford","opel"],title:"Luft- und Pollenfilter wechseln",steps:["## Benötigte Teile und Werkzeuge","- Neuer Luftfilter (fahrzeugspezifisch)","- Innenraumfilter / Pollenfilter","","## Motorluftfilter","1. Motorhaube öffnen, Luftfiltergehäuse finden","2. Clips lösen, Deckel abnehmen","3. Alten Filter herausnehmen, Gehäuse auswischen","4. Neuen Filter einlegen (Richtung beachten!), Deckel schließen","","## Innenraumfilter","1. Meist hinter Handschuhfach - Seiten eindrücken","2. Filterrahmen herausziehen, alten Filter entnehmen","3. Neuen Filter mit Pfeil in Strömungsrichtung einsetzen","","## Tipps","- Luftfilter alle 15.000-30.000 km","- Pollenfilter jährlich oder alle 15.000 km","- Aktivkohle-Filter bei Allergikern empfohlen"]},
+  zuendkerzen:{tags:["zundkerze","zundkerzen","spark","plug","fehlzundung","ruckeln"],models:["alle","mercedes","bmw","vw","golf","audi","ford","opel","toyota","smart"],title:"Zündkerzen wechseln",steps:["## Benötigte Teile und Werkzeuge","- Neue Zündkerzen (Anzahl = Zylinder, Typ laut Handbuch!)","- Zündkerzenschlüssel 16 mm oder 21 mm, Drehmomentschlüssel","","## Sicherheitshinweis","Nur bei KALTEM Motor! Heiße Kerzen beschädigen das Gewinde.","","## Schritt 1","1. Motor mind. 1 Stunde abkühlen lassen","2. Zündkabel nummerieren und abziehen","","## Schritt 2 - Kerzen wechseln","1. Zündkerzenschacht ausblasen","2. Kerze gegen Uhrzeigersinn lösen und herausschrauben","3. Alte Kerze prüfen: graubraun = normal, schwarz/ölig = Problem","4. Neue Kerze von Hand eindrehen, dann: 20-30 Nm","5. Zündkabel einrasten","","## Tipps","- Alle Kerzen gleichzeitig tauschen","- Alle 30.000-60.000 km (Iridium: 100.000 km)"]}
+};
+
+var DEFCATS = ["Schweissen","Motor","Getriebe","Bremsen","Elektrik","Karosserie","Reparatur","Sonstiges"];
+var SUGGS = ["Kupplungswechsel Mercedes W107","Zahnriemenwechsel VW Golf 4","Bremsbeläge BMW E46","Ölwechsel Porsche 911","Stoßdämpfer Audi A4","Glühlampe Smart 451","Batterie wechseln","Luftfilter wechseln","Zündkerzen wechseln"];
+
+function load(k,d){try{var v=localStorage.getItem(k)||sessionStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));sessionStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+var ST = {
+  result: null,
+  saved: load('ag_saved',[]),
+  videos: load('ag_vids',[]),
+  userCats: load('ag_cats',[]),
+  editId: null
+};
+
+function getCats(){return DEFCATS.concat(ST.userCats);}
+
+function norm(s){return s.toLowerCase().replace(/ü/g,'u').replace(/ö/g,'o').replace(/ä/g,'a').replace(/ß/g,'ss').replace(/[^a-z0-9 ]/g,' ');}
+
+function findGuide(q){
+  var ql=norm(q),best=null,bs=0;
+  Object.keys(DB).forEach(function(k){
+    var e=DB[k],sc=0;
+    e.tags.forEach(function(t){if(ql.indexOf(t)>=0)sc+=3;});
+    e.models.forEach(function(m){if(ql.indexOf(m)>=0)sc+=1;});
+    if(sc>bs){bs=sc;best=e;}
+  });
+  return bs>0?best:null;
+}
+
+function renderSteps(steps){
+  return steps.map(function(line){
+    if(!line)return '<div style="height:6px"></div>';
+    if(line.indexOf('## ')===0)return '<div class="step-h">'+line.slice(3)+'</div>';
+    var nm=line.match(/^(\d+)\. (.+)/);
+    if(nm)return '<div class="step-n"><b>'+nm[1]+'.</b><span>'+nm[2]+'</span></div>';
+    if(line.indexOf('- ')===0)return '<div class="step-d"><b>&#9658;</b><span>'+line.slice(2)+'</span></div>';
+    return '<div class="step-t">'+line+'</div>';
+  }).join('');
+}
+
+function buildPrint(steps,query){
+  var date=new Date().toLocaleDateString('de-DE');
+  var body=steps.map(function(line){
+    if(!line)return '<div style="height:4px"></div>';
+    if(line.indexOf('## ')===0)return '<div style="font-size:13px;font-weight:700;color:#1a1a2e;margin:12px 0 3px;border-left:3px solid #c0392b;padding-left:7px">'+line.slice(3)+'</div>';
+    var nm=line.match(/^(\d+)\. (.+)/);
+    if(nm)return '<div style="display:flex;gap:7px;margin:3px 0;font-size:11px"><b style="color:#c0392b;min-width:16px">'+nm[1]+'.</b><span>'+nm[2]+'</span></div>';
+    if(line.indexOf('- ')===0)return '<div style="margin:2px 0;font-size:11px;padding-left:12px">&#9658; '+line.slice(2)+'</div>';
+    return '<div style="font-size:11px;color:#555;margin:2px 0">'+line+'</div>';
+  }).join('');
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>KFZ</title>'
+    +'<style>body{font-family:sans-serif;color:#222;padding:28px 36px;max-width:660px;margin:0 auto}'
+    +'.pb{display:block;margin:18px auto;padding:10px 26px;background:#c0392b;color:#fff;border:none;border-radius:5px;font-size:13px;cursor:pointer}'
+    +'@media print{.pb{display:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+    +'</style></head><body>'
+    +'<div style="border-bottom:3px solid #1a1a2e;padding-bottom:11px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-end">'
+    +'<div><div style="font-size:19px;font-weight:800;color:#1a1a2e">KFZ Reparaturanleitung</div>'
+    +'<div style="font-size:11px;color:#666">'+query+'</div></div>'
+    +'<div style="text-align:right"><div style="font-size:9px;color:#999">Erstellt '+date+'</div>'
+    +'<div style="background:#c0392b;color:#fff;font-size:8px;padding:2px 6px;border-radius:2px;display:inline-block">AutoGuide AI</div></div>'
+    +'</div>'+body
+    +'<button class="pb" onclick="window.print()">Drucken / Als PDF speichern</button>'
+    +'<div style="margin-top:14px;padding-top:8px;border-top:1px solid #eee;font-size:8px;color:#aaa">AutoGuide AI - Alle Angaben ohne Gewähr</div>'
+    +'</body></html>';
+}
+
+function getYtId(url){var m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);return m?m[1]:null;}
+function getPlatform(url){
+  if(!url)return 'link';
+  if(url.indexOf('youtube.com')>=0||url.indexOf('youtu.be')>=0)return 'youtube';
+  if(url.indexOf('facebook.com')>=0||url.indexOf('fb.watch')>=0)return 'facebook';
+  if(url.indexOf('instagram.com')>=0)return 'instagram';
+  if(url.indexOf('tiktok.com')>=0)return 'tiktok';
+  if(url.indexOf('vimeo.com')>=0)return 'vimeo';
+  return 'link';
+}
+
+// ACTIONS
+function showTab(t){
+  ['anleitungen','videos','gespeichert'].forEach(function(id){
+    document.getElementById('p-'+id).style.display=id===t?'':'none';
+    var tb=document.getElementById('t-'+id);
+    tb.className=id===t?'tab on':'tab';
+  });
+  if(t==='videos')renderVids();
+  if(t==='gespeichert')renderSaved();
+  updateLabels();
+}
+
+function updateLabels(){
+  document.getElementById('t-videos').textContent='Videos'+(ST.videos.length>0?' ('+ST.videos.length+')':'');
+  document.getElementById('t-gespeichert').textContent='Gespeichert'+(ST.saved.length>0?' ('+ST.saved.length+')':'');
+}
+
+function doSearch(){
+  var q=document.getElementById('qi').value.trim();
+  if(!q)return;
+  var g=findGuide(q);
+  document.getElementById('nf').style.display='none';
+  document.getElementById('suggs').style.display='none';
+  if(g){
+    ST.result={title:g.title+' - '+q,steps:g.steps,query:q};
+    document.getElementById('rtitle').textContent=ST.result.title;
+    document.getElementById('rbody').innerHTML=renderSteps(g.steps);
+    document.getElementById('rb').style.display='';
+    document.getElementById('smsg').textContent='';
+  }else{
+    ST.result=null;
+    document.getElementById('rb').style.display='none';
+    document.getElementById('nf').style.display='';
+  }
+}
+
+function clearR(){
+  ST.result=null;
+  document.getElementById('rb').style.display='none';
+  document.getElementById('nf').style.display='none';
+  document.getElementById('suggs').style.display='';
+  document.getElementById('qi').value='';
+}
+
+function doSave(){
+  if(!ST.result)return;
+  var msg=document.getElementById('smsg');
+  if(ST.saved.find(function(x){return x.query===ST.result.query;})){
+    msg.style.color='#e74c3c';msg.textContent='Bereits vorhanden';
+  }else{
+    ST.saved.unshift({id:Date.now(),title:ST.result.title,steps:ST.result.steps,query:ST.result.query,date:new Date().toLocaleDateString('de-DE')});
+    save('ag_saved',ST.saved);updateLabels();
+    msg.style.color='#27ae60';msg.textContent='Gespeichert!';
+  }
+  setTimeout(function(){msg.textContent='';},2000);
+}
+
+function doPrint(){
+  if(!ST.result)return;
+  document.getElementById('pframe').srcdoc=buildPrint(ST.result.steps,ST.result.query);
+  document.getElementById('printoverlay').classList.add('on');
+}
+
+function renderSaved(){
+  var list=document.getElementById('slist');
+  document.getElementById('scnt').textContent=ST.saved.length+' Einträge';
+  if(!ST.saved.length){list.innerHTML='<div style="padding:28px;text-align:center;color:#444;font-size:13px">Noch keine Anleitungen gespeichert</div>';return;}
+  list.innerHTML=ST.saved.map(function(sv){
+    return '<div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px">'
+      +'<div style="flex:1;min-width:0"><div style="color:#e0e0e0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sv.title+'</div>'
+      +'<div style="color:#666;font-size:11px;margin-top:2px">'+sv.date+'</div></div>'
+      +'<button class="rb" style="padding:5px 10px;font-size:11px" onclick="openSaved('+sv.id+')">Öffnen</button>'
+      +'<button class="gb" style="padding:5px 9px" onclick="printSaved('+sv.id+')">PDF</button>'
+      +'<button class="xb" style="padding:5px 9px" onclick="delSaved('+sv.id+')">&#10005;</button>'
+      +'</div>';
+  }).join('');
+}
+
+function openSaved(id){var sv=ST.saved.find(function(x){return x.id===id;});if(!sv)return;ST.result=sv;document.getElementById('rtitle').textContent=sv.title;document.getElementById('rbody').innerHTML=renderSteps(sv.steps);document.getElementById('rb').style.display='';document.getElementById('suggs').style.display='none';document.getElementById('smsg').textContent='';showTab('anleitungen');}
+function printSaved(id){var sv=ST.saved.find(function(x){return x.id===id;});if(sv){document.getElementById('pframe').srcdoc=buildPrint(sv.steps,sv.query);document.getElementById('printoverlay').classList.add('on');}}
+function delSaved(id){ST.saved=ST.saved.filter(function(x){return x.id!==id;});save('ag_saved',ST.saved);renderSaved();updateLabels();}
+
+// VIDEO FUNCTIONS
+function saveVideo(){
+  var url=document.getElementById('vurl').value.trim();
+  var title=document.getElementById('vtitle').value.trim();
+  var msg=document.getElementById('vmsg');
+  if(!url||!title){msg.style.color='#e74c3c';msg.textContent='URL und Titel benötigt!';setTimeout(function(){msg.textContent='';},3000);return;}
+  var en={id:ST.editId||Date.now(),url:url,ytId:getYtId(url),platform:getPlatform(url),title:title,
+    category:document.getElementById('vcat').value,
+    tags:document.getElementById('vtags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
+    notes:document.getElementById('vnotes').value.trim(),
+    date:new Date().toLocaleDateString('de-DE')};
+  if(ST.editId){ST.videos=ST.videos.map(function(v){return v.id===ST.editId?en:v;});ST.editId=null;}
+  else{ST.videos.unshift(en);}
+  ['vurl','vtitle','vtags','vnotes'].forEach(function(id){document.getElementById(id).value='';});
+  save('ag_vids',ST.videos);updateLabels();renderVids();
+  document.getElementById('vflbl').textContent='Video hinzufügen';
+  document.getElementById('vsavebtn').textContent='+ Video speichern';
+  document.getElementById('vcancelbtn').style.display='none';
+  msg.style.color='#27ae60';msg.textContent='Gespeichert!';setTimeout(function(){msg.textContent='';},2000);
+}
+
+function editVideo(id){
+  var v=ST.videos.find(function(x){return x.id===id;});if(!v)return;
+  document.getElementById('vurl').value=v.url;
+  document.getElementById('vtitle').value=v.title;
+  document.getElementById('vcat').value=v.category;
+  document.getElementById('vtags').value=v.tags.join(', ');
+  document.getElementById('vnotes').value=v.notes;
+  ST.editId=v.id;
+  document.getElementById('vflbl').textContent='Video bearbeiten';
+  document.getElementById('vsavebtn').textContent='Aktualisieren';
+  document.getElementById('vcancelbtn').style.display='';
+  window.scrollTo(0,0);
+}
+
+function cancelEdit(){
+  ST.editId=null;
+  ['vurl','vtitle','vtags','vnotes'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('vflbl').textContent='Video hinzufügen';
+  document.getElementById('vsavebtn').textContent='+ Video speichern';
+  document.getElementById('vcancelbtn').style.display='none';
+}
+
+function delVideo(id){ST.videos=ST.videos.filter(function(v){return v.id!==id;});save('ag_vids',ST.videos);updateLabels();renderVids();}
+
+function renderVids(){
+  var s=(document.getElementById('vsearch').value||'').toLowerCase();
+  var cat=document.getElementById('vcatf').value;
+  var fv=ST.videos.filter(function(v){
+    var mc=cat==='Alle'||v.category===cat;
+    var ms=!s||v.title.toLowerCase().indexOf(s)>=0||v.notes.toLowerCase().indexOf(s)>=0||v.tags.some(function(t){return t.toLowerCase().indexOf(s)>=0;});
+    return mc&&ms;
+  });
+  document.getElementById('vsearchrow').style.display=ST.videos.length>0?'flex':'none';
+  document.getElementById('vempty').style.display=ST.videos.length===0?'':'none';
+  var list=document.getElementById('vlist');
+  if(!fv.length&&ST.videos.length>0){list.innerHTML='<div style="text-align:center;color:#555;font-size:13px;padding:20px">Keine Videos gefunden</div>';return;}
+  var platCol={youtube:'#ff0000',facebook:'#1877f2',instagram:'#e1306c',tiktok:'#555',vimeo:'#1ab7ea',link:'#888'};
+  var platLbl={youtube:'YouTube',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',vimeo:'Vimeo',link:'Link'};
+  list.innerHTML=fv.map(function(v){
+    var plat=v.platform||getPlatform(v.url);
+    var col=platCol[plat]||'#888';
+    var lbl=platLbl[plat]||'Link';
+    var thumb=v.ytId
+      ? '<img src=https://img.youtube.com/vi/'+v.ytId+'/mqdefault.jpg alt="" style=width:100%;height:100%;object-fit:cover;display:block>'
+      : '<div style=width:100%;min-height:78px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:'+col+'22;gap:4px><span style=font-size:24px;color:'+col+'>&#9654;</span><span style=font-size:10px;color:#888>'+lbl+'</span></div>';
+    var tags=v.tags.map(function(t){return '<span class="vtag vfree">'+t+'</span>';}).join('');
+    return '<div class="card fu" style=display:flex>'
+      +'<div style=width:108px;min-width:108px;background:#111;position:relative;flex-shrink:0>'
+      +thumb
+      +'<a href='+v.url+' target=_blank style=position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-decoration:none>'
+      +'<div style=background:rgba(192,57,43,.85);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px>&#9654;</div>'
+      +'</a></div>'
+      +'<div style=flex:1;padding:10px 12px;min-width:0>'
+      +'<div style=display:flex;justify-content:space-between;align-items:flex-start;gap:5px>'
+      +'<div style=font-weight:700;color:#e0e0e0;font-size:13px;line-height:1.4>'+v.title+'</div>'
+      +'<div style=display:flex;gap:5px;flex-shrink:0>'
+      +'<button onclick=editVideo('+v.id+') style=background:rgba(255,200,0,.12);border:1px solid rgba(255,200,0,.35);color:#f0c040;font-size:12px;cursor:pointer;padding:5px 10px;border-radius:7px;font-weight:600>&#9998; Edit</button>'
+      +'<button onclick=delVideo('+v.id+') style=background:rgba(192,57,43,.12);border:1px solid rgba(192,57,43,.35);color:#e74c3c;font-size:12px;cursor:pointer;padding:5px 10px;border-radius:7px>&#128465;</button>'
+      +'</div></div>'
+      +'<div style=display:flex;gap:5px;margin-top:5px;flex-wrap:wrap;align-items:center>'
+      +'<span class="vtag vcat" style=border-left:2px solid '+col+'>'+lbl+' · '+v.category+'</span>'+tags
+      +'<span style=color:#444;font-size:10px;margin-left:auto>'+v.date+'</span>'
+      +'</div>'
+      +(v.notes?'<div style=margin-top:5px;color:#777;font-size:12px;font-style:italic;line-height:1.4>'+v.notes+'</div>':'')
+      +'</div></div>';
+  }).join('');
+}
+
+// CATEGORIES
+function addCat(name){
+  name=(name||'').trim();
+  if(!name)return;
+  if(getCats().indexOf(name)>=0){alert('Kategorie existiert bereits!');return;}
+  ST.userCats.push(name);
+  save('ag_cats',ST.userCats);
+  rebuildCats();
+}
+
+function delCat(name){
+  ST.userCats=ST.userCats.filter(function(c){return c!==name;});
+  save('ag_cats',ST.userCats);
+  rebuildCats();
+}
+
+function rebuildCats(){
+  var cats=getCats();
+  var sel=document.getElementById('vcat');
+  var cur=sel.value;
+  sel.innerHTML=cats.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  if(cats.indexOf(cur)>=0)sel.value=cur;
+  var fil=document.getElementById('vcatf');
+  var curf=fil.value;
+  fil.innerHTML='<option value="Alle">Alle Kategorien</option>'+cats.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('');
+  if(curf&&(curf==='Alle'||cats.indexOf(curf)>=0))fil.value=curf;
+  var box=document.getElementById('catlist');
+  if(!ST.userCats.length){box.innerHTML='<div style="color:#555;font-size:12px;padding:6px 0">Noch keine eigenen Kategorien</div>';return;}
+  box.innerHTML=ST.userCats.map(function(cat){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:7px;margin-bottom:5px">'
+      +'<span style="color:#e0e0e0;font-size:13px">'+cat+'</span>'
+      +'<button onclick=delCat("'+cat+'") style="background:none;border:none;color:#666;font-size:16px;cursor:pointer;padding:4px 8px">&#128465;</button>'
+      +'</div>';
+  }).join('');
+}
+
+// EXPORT / IMPORT
+function exportData(){
+  var data={saved:ST.saved,videos:ST.videos,userCats:ST.userCats,date:new Date().toLocaleString('de-DE')};
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='autoguide-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+function importData(inp){
+  var file=inp.files[0];if(!file)return;
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var d=JSON.parse(e.target.result);
+      if(d.saved)ST.saved=d.saved;
+      if(d.videos)ST.videos=d.videos;
+      if(d.userCats)ST.userCats=d.userCats;
+      save('ag_saved',ST.saved);save('ag_vids',ST.videos);save('ag_cats',ST.userCats);
+      rebuildCats();updateLabels();renderSaved();renderVids();
+      alert('Geladen: '+ST.saved.length+' Anleitungen, '+ST.videos.length+' Videos');
+    }catch(err){alert('Fehler: '+err.message);}
+  };
+  r.readAsText(file);
+  inp.value='';
+}
+
+// INIT
+window.addEventListener('DOMContentLoaded',function(){
+  var sl=document.getElementById('sugglist');
+  SUGGS.forEach(function(s){
+    var b=document.createElement('button');
+    b.className='sb';b.textContent=s;
+    b.onclick=function(){document.getElementById('qi').value=s;};
+    sl.appendChild(b);
+  });
+  rebuildCats();
+  updateLabels();
+  window.addEventListener('pagehide',function(){save('ag_saved',ST.saved);save('ag_vids',ST.videos);save('ag_cats',ST.userCats);});
+});
+</script>
+</body>
+</html>
